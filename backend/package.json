@@ -1,0 +1,36 @@
+{
+  "name": "family-chat-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "argon2": "^0.31.2",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "libsodium-wrappers": "^0.7.13",
+    "pg": "^8.11.3",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/libsodium-wrappers": "^0.8.2",
+    "@types/node": "^20.12.7",
+    "@types/pg": "^8.11.5",
+    "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.5.10",
+    "supertest": "^7.2.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.5",
+    "vitest": "^1.4.0"
+  }
+}
