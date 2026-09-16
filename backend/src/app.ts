@@ -18,3 +18,16 @@ app.post('/auth/login', loginHandler);
 app.get('/auth/me', requireAuth, (req, res) => {
   res.status(200).json({ user: req.user });
 });
+
+
+import { messageService } from './messaging/message.service.js';
+
+// Agregar después de /auth/me:
+app.get('/messages', requireAuth, async (req, res) => {
+  try {
+    const messages = await messageService.getConversation(req.user.userId);
+    res.status(200).json({ messages });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
