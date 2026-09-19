@@ -23,8 +23,8 @@ export function initWebSocketServer(server: Server) {
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, env.jwtSecret) as { sub: string; username: string };
-        ws.userId = decoded.sub;
+        const decoded = jwt.verify(token, env.jwtSecret) as { userId: string; username: string };
+        ws.userId = decoded.userId;
         activeUsers.set(ws.userId, ws);
       } catch {
         ws.close(4001, 'Token inválido');
@@ -37,8 +37,8 @@ export function initWebSocketServer(server: Server) {
         const message = JSON.parse(data.toString());
 
         if (message.type === 'auth') {
-          const decoded = jwt.verify(message.token, env.jwtSecret) as { sub: string };
-          ws.userId = decoded.sub;
+          const decoded = jwt.verify(message.token, env.jwtSecret) as { userId: string };
+          ws.userId = decoded.userId;
           activeUsers.set(ws.userId, ws);
           ws.send(JSON.stringify({ type: 'auth_success' }));
           return;

@@ -1,4 +1,7 @@
-import sodium from 'libsodium-wrappers';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const sodium = require('libsodium-wrappers');
 
 export async function generateNonce(): Promise<Buffer> {
   await sodium.ready;

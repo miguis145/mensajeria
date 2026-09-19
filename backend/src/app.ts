@@ -1,6 +1,7 @@
 import express from 'express';
 import { registerHandler, loginHandler } from './auth/auth.controller.js';
 import { requireAuth } from './auth/auth.middleware.js';
+import { messageService } from './messaging/message.service.js';
 
 export const app = express();
 
@@ -19,12 +20,12 @@ app.get('/auth/me', requireAuth, (req, res) => {
   res.status(200).json({ user: req.user });
 });
 
-
-import { messageService } from './messaging/message.service.js';
-
-// Agregar después de /auth/me:
 app.get('/messages', requireAuth, async (req, res) => {
   try {
+    if (!req.user) {
+      res.status(401).json({ error: 'No autenticado' });
+      return;
+    }
     const messages = await messageService.getConversation(req.user.userId);
     res.status(200).json({ messages });
   } catch (err: any) {

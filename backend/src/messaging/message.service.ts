@@ -6,9 +6,9 @@ import { pool } from '../db/client.js';
 export class MessageService {
   async send(senderId: string, dto: SendMessageDTO): Promise<MessageRow> {
     // Si no se especifica caducidad, obtenemos el valor por defecto del receptor
-    let expirySeconds = dto.expirySeconds;
-    if (!expirySeconds) {
-      const userRes = await pool.query(
+    let expirySeconds: number = dto.expirySeconds ?? 86400;
+    if (!dto.expirySeconds) {
+      const userRes = await pool.query<{ default_expiry_seconds: number }>(
         'SELECT default_expiry_seconds FROM users WHERE id = $1',
         [dto.receiverId]
       );
