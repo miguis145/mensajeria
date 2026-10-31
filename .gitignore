@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+build/
+.dart_tool/
+*.apk
+.DS_Store

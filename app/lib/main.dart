@@ -4,6 +4,7 @@ import 'core/crypto/crypto_service.dart';
 import 'core/api/auth_api.dart';
 import 'core/api/users_api.dart';
 import 'core/api/chat_websocket.dart';
+import 'core/api/settings_api.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'core/auth/auth_repository.dart';
 import 'core/auth/auth_state.dart';
@@ -21,13 +22,16 @@ void main() async {
   final storage = SecureStorageService();
   final authApi = AuthApi(baseUrl: backendUrl);
   final usersApi = UsersApi(baseUrl: backendUrl);
-  final authRepository = AuthRepository(crypto: crypto, api: authApi, storage: storage);
+  final settingsApi = SettingsApi(baseUrl: backendUrl);
+  final authRepository =
+      AuthRepository(crypto: crypto, api: authApi, storage: storage);
 
   runApp(MyApp(
     authRepository: authRepository,
     storage: storage,
     crypto: crypto,
     usersApi: usersApi,
+    settingsApi: settingsApi,
   ));
 }
 
@@ -36,6 +40,7 @@ class MyApp extends StatelessWidget {
   final SecureStorageService storage;
   final CryptoService crypto;
   final UsersApi usersApi;
+  final SettingsApi settingsApi;
 
   const MyApp({
     super.key,
@@ -43,12 +48,15 @@ class MyApp extends StatelessWidget {
     required this.storage,
     required this.crypto,
     required this.usersApi,
+    required this.settingsApi,
   });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<SecureStorageService>.value(value: storage),
+        Provider<SettingsApi>.value(value: settingsApi),
         ChangeNotifierProvider(
           create: (_) => AuthState(repository: authRepository, storage: storage)
             ..checkExistingSession(),
@@ -65,7 +73,6 @@ class MyApp extends StatelessWidget {
               usersApi: usersApi,
               ws: ChatWebSocket(wsUrl: wsUrl),
             );
-            // Se conecta en segundo plano; la UI reacciona sola vía notifyListeners.
             storage.getToken().then((token) {
               storage.getUserId().then((userId) {
                 if (token != null && userId != null) {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class ChatMessage {
   final String id;
   final String senderId;
@@ -6,6 +8,7 @@ class ChatMessage {
   final DateTime sentAt;
   final DateTime expiresAt;
   final bool isMine;
+  final Uint8List? audioBytes;
 
   ChatMessage({
     required this.id,
@@ -15,5 +18,6 @@ class ChatMessage {
     required this.sentAt,
     required this.expiresAt,
     required this.isMine,
+    this.audioBytes,
   });
 }

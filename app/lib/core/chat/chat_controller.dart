@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../crypto/crypto_service.dart';
 import '../storage/secure_storage_service.dart';
@@ -11,7 +12,6 @@ class ChatController extends ChangeNotifier {
   final SecureStorageService _storage;
   final UsersApi _usersApi;
   final ChatWebSocket _ws;
-  ConnectionStatus connectionStatus = ConnectionStatus.connecting;
 
   ChatController({
     required CryptoService crypto,
@@ -25,14 +25,13 @@ class ChatController extends ChangeNotifier {
 
   List<FamilyUser> familyUsers = [];
   final Map<String, List<ChatMessage>> _conversations = {};
-  bool isConnected = false;
+  ConnectionStatus connectionStatus = ConnectionStatus.connecting;
   String? _myUserId;
   dynamic _myPrivateKey; // SecureKey
 
   List<ChatMessage> messagesWith(String peerId) =>
       List.unmodifiable(_conversations[peerId] ?? []);
 
-  /// Se llama una vez, apenas el usuario está autenticado.
   Future<void> init({required String token, required String myUserId}) async {
     _myUserId = myUserId;
 
@@ -44,11 +43,12 @@ class ChatController extends ChangeNotifier {
 
     familyUsers = await _usersApi.listUsers(token);
 
-    await _ws.connect(token);
     _ws.status.listen((s) {
       connectionStatus = s;
-        notifyListeners();
+      notifyListeners();
     });
+
+    await _ws.connect(token);
     _ws.messages.listen(_handleIncoming);
 
     notifyListeners();
@@ -56,15 +56,9 @@ class ChatController extends ChangeNotifier {
 
   void _handleIncoming(Map<String, dynamic> data) {
     switch (data['type']) {
-      case 'auth_success':
-        isConnected = true;
-        notifyListeners();
-        break;
-
       case 'new_message':
         _decryptAndStore(data['payload'], isMine: false);
         break;
-
       case 'error':
         debugPrint('Error del servidor: ${data['message']}');
         break;
@@ -89,21 +83,22 @@ class ChatController extends ChangeNotifier {
       receiverPrivateKey: _myPrivateKey,
     );
 
+    final type = payload['type'] as String;
     final message = ChatMessage(
       id: payload['id'],
       senderId: senderId,
-      type: payload['type'],
-      plaintext: _crypto.bytesToString(plaintextBytes),
+      type: type,
+      plaintext: type == 'text' ? _crypto.bytesToString(plaintextBytes) : '[Nota de voz]',
       sentAt: DateTime.parse(payload['sent_at']),
       expiresAt: DateTime.parse(payload['expires_at']),
       isMine: isMine,
+      audioBytes: type == 'audio' ? plaintextBytes : null,
     );
 
     _conversations.putIfAbsent(senderId, () => []).add(message);
     notifyListeners();
   }
 
-  /// Cifra y envía un mensaje de texto al peer indicado.
   void sendText(FamilyUser peer, String text) {
     final receiverPublicKey = base64Decode(peer.publicKeyBase64);
 
@@ -120,8 +115,6 @@ class ChatController extends ChangeNotifier {
       nonceBase64: base64Encode(encrypted.nonce),
     );
 
-    // Mostramos el mensaje de inmediato en la UI (optimista),
-    // sin esperar la confirmación del servidor.
     final localMessage = ChatMessage(
       id: 'local-${DateTime.now().microsecondsSinceEpoch}',
       senderId: _myUserId!,
@@ -130,6 +123,36 @@ class ChatController extends ChangeNotifier {
       sentAt: DateTime.now(),
       expiresAt: DateTime.now().add(const Duration(days: 1)),
       isMine: true,
+    );
+    _conversations.putIfAbsent(peer.id, () => []).add(localMessage);
+    notifyListeners();
+  }
+
+  void sendAudio(FamilyUser peer, Uint8List audioBytes) {
+    final receiverPublicKey = base64Decode(peer.publicKeyBase64);
+
+    final encrypted = _crypto.encryptMessage(
+      message: audioBytes,
+      receiverPublicKey: receiverPublicKey,
+      senderPrivateKey: _myPrivateKey,
+    );
+
+    _ws.sendMessage(
+      receiverId: peer.id,
+      type: 'audio',
+      ciphertextBase64: base64Encode(encrypted.ciphertext),
+      nonceBase64: base64Encode(encrypted.nonce),
+    );
+
+    final localMessage = ChatMessage(
+      id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+      senderId: _myUserId!,
+      type: 'audio',
+      plaintext: '[Nota de voz]',
+      sentAt: DateTime.now(),
+      expiresAt: DateTime.now().add(const Duration(days: 1)),
+      isMine: true,
+      audioBytes: audioBytes,
     );
     _conversations.putIfAbsent(peer.id, () => []).add(localMessage);
     notifyListeners();

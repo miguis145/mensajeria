@@ -24,3 +24,32 @@ export async function findUserByUsername(
   );
   return rows[0] ?? null;
 }
+
+export async function listUsersExcept(userId: string): Promise<UserRow[]> {
+  const { rows } = await pool.query<UserRow>(
+    'SELECT * FROM users WHERE id != $1 ORDER BY username ASC',
+    [userId]
+  );
+  return rows;
+}
+
+export async function findUserById(userId: string): Promise<UserRow | null> {
+  const { rows } = await pool.query<UserRow>(
+    'SELECT * FROM users WHERE id = $1',
+    [userId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function updateDefaultExpiry(
+  userId: string,
+  seconds: number
+): Promise<UserRow> {
+  const { rows } = await pool.query<UserRow>(
+    `UPDATE users SET default_expiry_seconds = $2
+     WHERE id = $1
+     RETURNING *`,
+    [userId, seconds]
+  );
+  return rows[0];
+}
