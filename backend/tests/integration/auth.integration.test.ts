@@ -30,7 +30,7 @@ describe('Flujo completo de auth vía app real', () => {
     const registerRes = await request(app).post('/auth/register').send({
       username: 'fr4nk',
       password: 'passwordSegura123',
-      publicKey: Buffer.from('clave-publica').toString('base64'),
+      publicKey: Buffer.alloc(32, 1).toString('base64'),
     });
 
     expect(registerRes.status).toBe(201);

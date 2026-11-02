@@ -18,5 +18,8 @@ export interface MessageRow {
   sent_at: Date;
   delivered_at: Date | null;
   read_at: Date | null;
-  expires_at: Date;
+  sender_expires_at: Date;
+  receiver_expires_at: Date;
+  /** Solo en consultas por usuario: la caducidad de la copia de QUIEN consulta */
+  expires_at?: Date;
 }

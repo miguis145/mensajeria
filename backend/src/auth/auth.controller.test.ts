@@ -35,7 +35,7 @@ describe('POST /register', () => {
     const res = await request(app).post('/register').send({
       username: 'fr4nk',
       password: 'passwordSegura123',
-      publicKey: Buffer.from('clave-publica-falsa').toString('base64'),
+      publicKey: Buffer.alloc(32, 1).toString('base64'),
     });
 
     expect(res.status).toBe(201);
@@ -57,7 +57,7 @@ describe('POST /register', () => {
     const res = await request(app).post('/register').send({
       username: 'fr4nk',
       password: 'passwordSegura123',
-      publicKey: Buffer.from('clave').toString('base64'),
+      publicKey: Buffer.alloc(32, 2).toString('base64'),
     });
 
     expect(res.status).toBe(409);
@@ -129,3 +129,20 @@ describe('POST /login', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('validación de registro', () => {
+  const base = { username: 'fr4nk', password: 'passwordSegura123', publicKey: Buffer.alloc(32, 1).toString('base64') };
+  const casos: [string, object][] = [
+    ['username muy corto', { username: 'ab' }],
+    ['username con caracteres raros', { username: 'fr4nk; DROP' }],
+    ['password corta', { password: '1234567' }],
+    ['publicKey que no mide 32 bytes', { publicKey: Buffer.alloc(10).toString('base64') }],
+    ['username que no es string', { username: { $ne: null } }],
+  ];
+  it.each(casos)('rechaza %s con 400', async (_n, cambio) => {
+    const res = await request(buildTestApp()).post('/register').send({ ...base, ...cambio });
+    expect(res.status).toBe(400);
+    expect(userRepository.createUser).not.toHaveBeenCalled();
+  });
+});
+
