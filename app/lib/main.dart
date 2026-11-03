@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/crypto/crypto_service.dart';
+import 'core/theme/app_theme.dart';
 import 'core/api/auth_api.dart';
 import 'core/api/users_api.dart';
 import 'core/api/messages_api.dart';
@@ -99,10 +100,9 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Family Chat',
-        theme: ThemeData(
-          colorSchemeSeed: Colors.deepPurple,
-          useMaterial3: true,
-        ),
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeMode.system,
         home: const _AuthGate(),
       ),
     );

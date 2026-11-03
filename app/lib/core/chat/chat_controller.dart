@@ -89,6 +89,9 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Para el gesto de "tirar para actualizar".
+  Future<void> refresh() => _syncPending();
+
   // ---------------------------------------------------------------- recepción
 
   void _handleIncoming(Map<String, dynamic> data) {
