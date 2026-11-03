@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../auth/auth_repository.dart';
 import '../storage/secure_storage_service.dart';
 
@@ -11,8 +12,8 @@ class AuthState extends ChangeNotifier {
   AuthState({
     required AuthRepository repository,
     required SecureStorageService storage,
-  })  : _repository = repository,
-        _storage = storage;
+  }) : _repository = repository,
+       _storage = storage;
 
   AuthStatus status = AuthStatus.unknown;
   String? username;
@@ -83,8 +84,10 @@ class AuthState extends ChangeNotifier {
 
   String _friendlyError(Object e) {
     final msg = e.toString();
-    if (msg.contains('Credenciales inválidas')) return 'Usuario o contraseña incorrectos';
-    if (msg.contains('ya está en uso')) return 'Ese nombre de usuario ya existe';
+    if (msg.contains('Credenciales inválidas'))
+      return 'Usuario o contraseña incorrectos';
+    if (msg.contains('ya está en uso'))
+      return 'Ese nombre de usuario ya existe';
     if (msg.contains('clave privada')) return msg.replaceAll('Exception: ', '');
     return 'Error de conexión. Verifica que el servidor esté disponible.';
   }

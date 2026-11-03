@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateSendMessage } from './validation.js';
+import { validateSendMessage, extractClientId } from './validation.js';
 
 const SENDER = '11111111-1111-4111-8111-111111111111';
 const RECEIVER = '22222222-2222-4222-8222-222222222222';
@@ -54,15 +54,31 @@ describe('validateSendMessage', () => {
     expect(validateSendMessage(SENDER, { ...ok(), expirySeconds: 2_592_000 }).expirySeconds).toBe(2_592_000);
   });
 
-  it('audio exige audioBlob y texto no puede llevarlo', () => {
-    expect(() => validateSendMessage(SENDER, { ...ok(), type: 'audio' })).toThrow(/audioBlob/);
-    const audio = Buffer.from('bytes de audio').toString('base64');
-    expect(validateSendMessage(SENDER, { ...ok(), type: 'audio', audioBlob: audio }).audioBlob).toBe(audio);
-    expect(() => validateSendMessage(SENDER, { ...ok(), audioBlob: audio })).toThrow(/texto/);
+  it('un audio viaja en "ciphertext" (como lo envía la app), sin audioBlob', () => {
+    const audio = Buffer.alloc(200 * 1024, 5).toString('base64'); // 200 KB, mucho más que un texto
+    const dto = validateSendMessage(SENDER, { ...ok(), type: 'audio', ciphertext: audio });
+    expect(dto.type).toBe('audio');
+    expect(dto.ciphertext).toBe(audio);
+  });
+
+  it('rechaza audioBlob: ningún cliente lo usa', () => {
+    const blob = Buffer.from('x').toString('base64');
+    expect(() => validateSendMessage(SENDER, { ...ok(), audioBlob: blob })).toThrow(/audioBlob/);
+    expect(() => validateSendMessage(SENDER, { ...ok(), type: 'audio', audioBlob: blob })).toThrow(/audioBlob/);
   });
 
   it('rechaza audio de más de 10 MB', () => {
     const huge = Buffer.alloc(10 * 1024 * 1024 + 1, 1).toString('base64');
-    expect(() => validateSendMessage(SENDER, { ...ok(), type: 'audio', audioBlob: huge })).toThrow(/10MB/);
+    expect(() => validateSendMessage(SENDER, { ...ok(), type: 'audio', ciphertext: huge })).toThrow(/10MB/);
+  });
+});
+
+describe('extractClientId', () => {
+  it('devuelve el clientId válido y descarta los raros', () => {
+    expect(extractClientId({ clientId: 'local-1730000000000' })).toBe('local-1730000000000');
+    expect(extractClientId({ clientId: 'con espacios' })).toBeUndefined();
+    expect(extractClientId({ clientId: 'x'.repeat(65) })).toBeUndefined();
+    expect(extractClientId({ clientId: 42 })).toBeUndefined();
+    expect(extractClientId(null)).toBeUndefined();
   });
 });

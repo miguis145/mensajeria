@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/chat/chat_controller.dart';
 import '../../core/api/chat_websocket.dart';
 import '../../core/api/users_api.dart';
@@ -48,7 +49,9 @@ class ConversationsScreen extends StatelessWidget {
             ),
           Expanded(
             child: chat.familyUsers.isEmpty
-                ? const Center(child: Text('Nadie más se ha registrado todavía'))
+                ? const Center(
+                    child: Text('Nadie más se ha registrado todavía'),
+                  )
                 : ListView.builder(
                     itemCount: chat.familyUsers.length,
                     itemBuilder: (context, index) {
@@ -59,7 +62,9 @@ class ConversationsScreen extends StatelessWidget {
                         ),
                         title: Text(peer.username),
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => ChatScreen(peer: peer)),
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(peer: peer),
+                          ),
                         ),
                       );
                     },

@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
   final FlutterSecureStorage _storage;
 
   SecureStorageService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _kPrivateKey = 'private_key';
   static const _kToken = 'auth_token';
@@ -19,7 +20,10 @@ class SecureStorageService {
     required String userId,
     required String username,
   }) async {
-    await _storage.write(key: _kPrivateKey, value: base64Encode(privateKeyBytes));
+    await _storage.write(
+      key: _kPrivateKey,
+      value: base64Encode(privateKeyBytes),
+    );
     await _storage.write(key: _kToken, value: token);
     await _storage.write(key: _kUserId, value: userId);
     await _storage.write(key: _kUsername, value: username);

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:sodium_libs/sodium_libs.dart';
 
 class EncryptedPayload {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import '../crypto/crypto_service.dart';
 import '../api/auth_api.dart';
 import '../storage/secure_storage_service.dart';
@@ -12,9 +13,9 @@ class AuthRepository {
     required CryptoService crypto,
     required AuthApi api,
     required SecureStorageService storage,
-  })  : _crypto = crypto,
-        _api = api,
-        _storage = storage;
+  }) : _crypto = crypto,
+       _api = api,
+       _storage = storage;
 
   /// Registra un usuario nuevo: genera el par de claves EN EL DISPOSITIVO,
   /// sube solo la pública, y guarda la privada localmente cifrada.

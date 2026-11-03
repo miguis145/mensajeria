@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+
 import 'package:record/record.dart';
+
 import 'dart:io';
 
 class AudioRecorderService {

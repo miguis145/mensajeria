@@ -20,4 +20,19 @@ class ChatMessage {
     required this.isMine,
     this.audioBytes,
   });
+
+  /// Copia el mensaje cambiando solo lo indicado. Se usa cuando el servidor
+  /// confirma un envío: el id local pasa a ser el real y la caducidad la real.
+  ChatMessage copyWith({String? id, DateTime? sentAt, DateTime? expiresAt}) {
+    return ChatMessage(
+      id: id ?? this.id,
+      senderId: senderId,
+      type: type,
+      plaintext: plaintext,
+      sentAt: sentAt ?? this.sentAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+      isMine: isMine,
+      audioBytes: audioBytes,
+    );
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/auth/auth_state.dart';
 import 'register_screen.dart';
 
@@ -33,7 +34,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authState.errorMessage ?? 'Error al iniciar sesión')),
+        SnackBar(
+          content: Text(authState.errorMessage ?? 'Error al iniciar sesión'),
+        ),
       );
     }
   }

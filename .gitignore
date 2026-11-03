@@ -5,3 +5,12 @@ build/
 .dart_tool/
 *.apk
 .DS_Store
+
+# zips y paquetes
+*.zip
+*.xip
+*.tar
+*.gz
+*.apk
+*.aab
+*.ipa

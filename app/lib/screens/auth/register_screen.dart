@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/auth/auth_state.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -34,7 +35,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authState.errorMessage ?? 'Error al registrarse')),
+        SnackBar(
+          content: Text(authState.errorMessage ?? 'Error al registrarse'),
+        ),
       );
     }
   }

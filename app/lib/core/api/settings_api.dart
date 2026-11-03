@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 class SettingsApi {
@@ -6,7 +7,7 @@ class SettingsApi {
   final http.Client _client;
 
   SettingsApi({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   Future<int> getDefaultExpiry(String token) async {
     final res = await _client.get(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'core/crypto/crypto_service.dart';
 import 'core/api/auth_api.dart';
 import 'core/api/users_api.dart';
+import 'core/api/messages_api.dart';
 import 'core/api/chat_websocket.dart';
 import 'core/api/settings_api.dart';
 import 'core/storage/secure_storage_service.dart';
@@ -12,8 +14,8 @@ import 'core/chat/chat_controller.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/chat/conversations_screen.dart';
 
-const String backendUrl = 'http://192.168.1.17:3000';
-const String wsUrl = 'ws://192.168.1.17:3000';
+const String backendUrl = 'http://192.168.1.10:3001';
+const String wsUrl = 'ws://192.168.1.10:3001';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,17 +24,24 @@ void main() async {
   final storage = SecureStorageService();
   final authApi = AuthApi(baseUrl: backendUrl);
   final usersApi = UsersApi(baseUrl: backendUrl);
+  final messagesApi = MessagesApi(baseUrl: backendUrl);
   final settingsApi = SettingsApi(baseUrl: backendUrl);
-  final authRepository =
-      AuthRepository(crypto: crypto, api: authApi, storage: storage);
-
-  runApp(MyApp(
-    authRepository: authRepository,
-    storage: storage,
+  final authRepository = AuthRepository(
     crypto: crypto,
-    usersApi: usersApi,
-    settingsApi: settingsApi,
-  ));
+    api: authApi,
+    storage: storage,
+  );
+
+  runApp(
+    MyApp(
+      authRepository: authRepository,
+      storage: storage,
+      crypto: crypto,
+      usersApi: usersApi,
+      messagesApi: messagesApi,
+      settingsApi: settingsApi,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -40,6 +49,7 @@ class MyApp extends StatelessWidget {
   final SecureStorageService storage;
   final CryptoService crypto;
   final UsersApi usersApi;
+  final MessagesApi messagesApi;
   final SettingsApi settingsApi;
 
   const MyApp({
@@ -48,6 +58,7 @@ class MyApp extends StatelessWidget {
     required this.storage,
     required this.crypto,
     required this.usersApi,
+    required this.messagesApi,
     required this.settingsApi,
   });
 
@@ -58,8 +69,9 @@ class MyApp extends StatelessWidget {
         Provider<SecureStorageService>.value(value: storage),
         Provider<SettingsApi>.value(value: settingsApi),
         ChangeNotifierProvider(
-          create: (_) => AuthState(repository: authRepository, storage: storage)
-            ..checkExistingSession(),
+          create: (_) =>
+              AuthState(repository: authRepository, storage: storage)
+                ..checkExistingSession(),
         ),
         ChangeNotifierProxyProvider<AuthState, ChatController?>(
           create: (_) => null,
@@ -71,6 +83,7 @@ class MyApp extends StatelessWidget {
               crypto: crypto,
               storage: storage,
               usersApi: usersApi,
+              messagesApi: messagesApi,
               ws: ChatWebSocket(wsUrl: wsUrl),
             );
             storage.getToken().then((token) {
@@ -86,7 +99,10 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Family Chat',
-        theme: ThemeData(colorSchemeSeed: Colors.deepPurple, useMaterial3: true),
+        theme: ThemeData(
+          colorSchemeSeed: Colors.deepPurple,
+          useMaterial3: true,
+        ),
         home: const _AuthGate(),
       ),
     );
@@ -108,7 +124,9 @@ class _AuthGate extends StatelessWidget {
       case AuthStatus.authenticated:
         final chatController = context.watch<ChatController?>();
         if (chatController == null) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         return ChangeNotifierProvider.value(
           value: chatController,

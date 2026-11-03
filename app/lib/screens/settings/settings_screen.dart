@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/api/settings_api.dart';
 import '../../core/storage/secure_storage_service.dart';
 
@@ -67,16 +68,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _saving = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Preferencia guardada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Preferencia guardada')));
       }
     } catch (_) {
       setState(() => _saving = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('No se pudo guardar')));
       }
     }
   }

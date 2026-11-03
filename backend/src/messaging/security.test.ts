@@ -42,9 +42,7 @@ beforeAll(async () => {
   port = (server.address() as AddressInfo).port;
 });
 afterAll(() => new Promise<void>((r) => server.close(() => r())));
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+beforeEach(() => vi.clearAllMocks());
 
 function connect(userId: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
@@ -144,5 +142,49 @@ describe('MessageService: cada lado tiene su propia caducidad', () => {
     await expect(
       messageService.send(A, { receiverId: B, type: 'text', ciphertext: ct, nonce, expirySeconds: 60 }),
     ).rejects.toThrow(/Destinatario/);
+  });
+});
+
+describe('nota de voz de extremo a extremo (como la envía la app)', () => {
+  it('acepta audio en "ciphertext", confirma con clientId y entrega a cada lado SU caducidad', async () => {
+    const senderExp = new Date(Date.now() + 120_000);
+    const receiverExp = new Date(Date.now() + 86_400_000);
+    const audio = Buffer.alloc(300 * 1024, 3); // 300 KB de "audio cifrado"
+
+    vi.mocked(pool.query).mockResolvedValue({
+      rows: [{ id: A, default_expiry_seconds: 120 }, { id: B, default_expiry_seconds: 86400 }],
+    } as any);
+    vi.mocked(messageRepository.createMessage).mockResolvedValue({
+      id: MSG, sender_id: A, receiver_id: B, type: 'audio',
+      ciphertext: audio, nonce: Buffer.alloc(24, 7), audio_blob: null,
+      sent_at: new Date(), delivered_at: null, read_at: null,
+      sender_expires_at: senderExp, receiver_expires_at: receiverExp,
+    });
+
+    const receptor = await connect(B);
+    const emisor = await connect(A);
+    const recibido = nextMessage(receptor);
+    const confirmacion = nextMessage(emisor);
+
+    emisor.send(JSON.stringify({
+      type: 'send_message',
+      payload: {
+        clientId: 'local-123', receiverId: B, type: 'audio',
+        ciphertext: audio.toString('base64'), nonce,
+      },
+    }));
+
+    const sent = await confirmacion;
+    expect(sent.type).toBe('message_sent');
+    expect(sent.payload.clientId).toBe('local-123');
+    expect(sent.payload.expires_at).toBe(senderExp.toISOString());
+
+    const nuevo = await recibido;
+    expect(nuevo.type).toBe('new_message');
+    expect(nuevo.payload.expires_at).toBe(receiverExp.toISOString());
+    expect(Buffer.from(nuevo.payload.ciphertext, 'base64')).toHaveLength(audio.length);
+
+    emisor.close();
+    receptor.close();
   });
 });

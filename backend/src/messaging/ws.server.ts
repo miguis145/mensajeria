@@ -3,7 +3,8 @@ import type { Server } from 'node:http';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { messageService } from './message.service.js';
-import { validateSendMessage } from './validation.js';
+import { validateSendMessage, extractClientId } from './validation.js';
+import { toWireMessage } from './wire.js';
 import { AppError } from '../shared/errors.js';
 
 interface AuthenticatedSocket extends WebSocket {
@@ -88,36 +89,26 @@ export function initWebSocketServer(server: Server) {
           const dto = validateSendMessage(ws.userId, message.payload);
           const savedMessage = await messageService.send(ws.userId, dto);
 
-          // Confirmar recepción al emisor
+          // Confirmar recepción al emisor (con SU caducidad y su clientId)
           ws.send(
             JSON.stringify({
               type: 'message_sent',
               payload: {
                 id: savedMessage.id,
+                clientId: extractClientId(message.payload),
                 sent_at: savedMessage.sent_at,
-                // caducidad de la copia del EMISOR
                 expires_at: savedMessage.sender_expires_at,
               },
             }),
           );
 
-          // Notificar al receptor si está conectado
+          // Notificar al receptor si está conectado (con la caducidad del RECEPTOR)
           const recipientSocket = activeUsers.get(dto.receiverId);
           if (recipientSocket && recipientSocket.readyState === WebSocket.OPEN) {
             recipientSocket.send(
               JSON.stringify({
                 type: 'new_message',
-                payload: {
-                  id: savedMessage.id,
-                  senderId: savedMessage.sender_id,
-                  type: savedMessage.type,
-                  ciphertext: savedMessage.ciphertext.toString('base64'),
-                  nonce: savedMessage.nonce.toString('base64'),
-                  audioBlob: savedMessage.audio_blob?.toString('base64'),
-                  sent_at: savedMessage.sent_at,
-                  // caducidad de la copia del RECEPTOR
-                  expires_at: savedMessage.receiver_expires_at,
-                },
+                payload: toWireMessage(savedMessage, dto.receiverId),
               }),
             );
             await messageService.markDelivered(savedMessage.id);

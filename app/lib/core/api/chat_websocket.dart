@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 enum ConnectionStatus { connecting, connected, disconnected, reconnecting }
@@ -9,7 +10,9 @@ class ChatWebSocket {
   WebSocketChannel? _channel;
   String? _lastToken;
   bool _manuallyDisconnected = false;
+  bool _connected = false;
   int _reconnectAttempts = 0;
+  Timer? _reconnectTimer;
 
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _statusController = StreamController<ConnectionStatus>.broadcast();
@@ -19,6 +22,9 @@ class ChatWebSocket {
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
   Stream<ConnectionStatus> get status => _statusController.stream;
 
+  /// true solo cuando el servidor ya confirmó la autenticación (auth_success).
+  bool get isConnected => _connected;
+
   Future<void> connect(String token) async {
     _lastToken = token;
     _manuallyDisconnected = false;
@@ -27,74 +33,111 @@ class ChatWebSocket {
 
   Future<void> _openConnection() async {
     _statusController.add(
-      _reconnectAttempts == 0 ? ConnectionStatus.connecting : ConnectionStatus.reconnecting,
+      _reconnectAttempts == 0
+          ? ConnectionStatus.connecting
+          : ConnectionStatus.reconnecting,
     );
 
-    try {
-      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-      await _channel!.ready; // lanza si la conexión falla
+    // Cerramos la conexión anterior (si quedó alguna) antes de abrir otra.
+    final old = _channel;
+    _channel = null;
+    old?.sink.close();
 
-      _channel!.stream.listen(
+    try {
+      final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      _channel = channel;
+      await channel.ready; // lanza si la conexión falla
+
+      channel.stream.listen(
         (data) {
           final decoded = jsonDecode(data as String) as Map<String, dynamic>;
           if (decoded['type'] == 'auth_success') {
             _reconnectAttempts = 0;
+            _connected = true;
             _statusController.add(ConnectionStatus.connected);
           }
           _messageController.add(decoded);
         },
-        onError: (_) => _handleDisconnect(),
-        onDone: () => _handleDisconnect(),
+        onError: (_) => _onChannelClosed(channel),
+        onDone: () => _onChannelClosed(channel),
       );
 
-      _channel!.sink.add(jsonEncode({'type': 'auth', 'token': _lastToken}));
+      channel.sink.add(jsonEncode({'type': 'auth', 'token': _lastToken}));
     } catch (_) {
       _handleDisconnect();
     }
   }
 
+  /// Ignora el cierre de canales viejos: solo reaccionamos al canal actual.
+  void _onChannelClosed(WebSocketChannel closed) {
+    if (!identical(closed, _channel)) return;
+    _handleDisconnect();
+  }
+
   void _handleDisconnect() {
     if (_manuallyDisconnected) return;
+    _connected = false;
+
+    // onError y onDone suelen dispararse juntos: con un solo reintento pendiente basta.
+    if (_reconnectTimer?.isActive ?? false) return;
 
     _statusController.add(ConnectionStatus.disconnected);
     _reconnectAttempts++;
 
-    // Backoff exponencial, con tope de 30 segundos entre intentos.
+    // Retroceso lineal, con tope de 30 segundos entre intentos.
     final delaySeconds = (_reconnectAttempts * 2).clamp(2, 30);
-    Timer(Duration(seconds: delaySeconds), () {
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+      _reconnectTimer = null;
       if (!_manuallyDisconnected && _lastToken != null) {
         _openConnection();
       }
     });
   }
 
-  void sendMessage({
+  /// Devuelve false si no hay conexión: el mensaje NO se envió y el llamador
+  /// debe avisar al usuario en vez de mostrarlo como enviado.
+  bool sendMessage({
     required String receiverId,
     required String type,
     required String ciphertextBase64,
     required String nonceBase64,
-    String? audioBlobBase64,
+    String? clientId,
     int? expirySeconds,
   }) {
-    _channel?.sink.add(jsonEncode({
-      'type': 'send_message',
-      'payload': {
-        'receiverId': receiverId,
-        'type': type,
-        'ciphertext': ciphertextBase64,
-        'nonce': nonceBase64,
-        if (audioBlobBase64 != null) 'audioBlob': audioBlobBase64,
-        if (expirySeconds != null) 'expirySeconds': expirySeconds,
-      },
-    }));
+    final channel = _channel;
+    if (!_connected || channel == null) return false;
+
+    try {
+      channel.sink.add(
+        jsonEncode({
+          'type': 'send_message',
+          'payload': {
+            'receiverId': receiverId,
+            'type': type,
+            'ciphertext': ciphertextBase64,
+            'nonce': nonceBase64,
+            'clientId': ?clientId,
+            'expirySeconds': ?expirySeconds,
+          },
+        }),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void markRead(String messageId) {
-    _channel?.sink.add(jsonEncode({'type': 'mark_read', 'messageId': messageId}));
+    if (!_connected) return;
+    _channel?.sink.add(
+      jsonEncode({'type': 'mark_read', 'messageId': messageId}),
+    );
   }
 
   void dispose() {
     _manuallyDisconnected = true;
+    _connected = false;
+    _reconnectTimer?.cancel();
     _channel?.sink.close();
     _messageController.close();
     _statusController.close();

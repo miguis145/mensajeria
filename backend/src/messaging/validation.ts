@@ -38,8 +38,18 @@ export function validateSendMessage(senderId: string, raw: unknown): SendMessage
   }
 
   const ciphertext = decodeBase64(p.ciphertext, 'ciphertext');
-  if (ciphertext.length > MAX_TEXT_CIPHERTEXT_BYTES) {
-    throw new AppError('ciphertext demasiado grande', 413);
+  if (p.type === 'text') {
+    if (ciphertext.length > MAX_TEXT_CIPHERTEXT_BYTES) {
+      throw new AppError('ciphertext demasiado grande', 413);
+    }
+  } else {
+    // La app cifra el audio completo y lo envía en "ciphertext" (no en audioBlob).
+    // Reutilizamos el límite de 10 MB que ya definimos en AudioService.
+    try {
+      audioService.validateAudioPayload(p.ciphertext as string);
+    } catch (e: any) {
+      throw new AppError(e.message, 413);
+    }
   }
 
   const nonce = decodeBase64(p.nonce, 'nonce');
@@ -47,17 +57,9 @@ export function validateSendMessage(senderId: string, raw: unknown): SendMessage
     throw new AppError('Campo inválido: nonce', 400);
   }
 
-  if (p.type === 'audio') {
-    const audio = decodeBase64(p.audioBlob, 'audioBlob');
-    // Reutiliza el límite de 10 MB que ya definimos en AudioService
-    try {
-      audioService.validateAudioPayload(p.audioBlob as string);
-    } catch (e: any) {
-      throw new AppError(e.message, 413);
-    }
-    void audio;
-  } else if (p.audioBlob !== undefined && p.audioBlob !== null) {
-    throw new AppError('Un mensaje de texto no puede incluir audioBlob', 400);
+  // audioBlob es una columna heredada que ningún cliente usa: no la aceptamos
+  if (p.audioBlob !== undefined && p.audioBlob !== null) {
+    throw new AppError('Campo no permitido: audioBlob', 400);
   }
 
   let expirySeconds: number | undefined;
@@ -81,7 +83,18 @@ export function validateSendMessage(senderId: string, raw: unknown): SendMessage
     type: p.type,
     ciphertext: p.ciphertext as string,
     nonce: p.nonce as string,
-    audioBlob: p.type === 'audio' ? (p.audioBlob as string) : undefined,
     expirySeconds,
   };
+}
+
+const CLIENT_ID_RE = /^[\w-]{1,64}$/;
+
+/**
+ * "clientId" es un identificador que genera la app para reconocer su mensaje
+ * local cuando llega la confirmación. El servidor solo lo devuelve tal cual.
+ */
+export function extractClientId(raw: unknown): string | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const id = (raw as Record<string, unknown>).clientId;
+  return typeof id === 'string' && CLIENT_ID_RE.test(id) ? id : undefined;
 }

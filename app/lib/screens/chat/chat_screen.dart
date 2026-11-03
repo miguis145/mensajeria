@@ -1,12 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
+
 import '../../core/api/users_api.dart';
 import '../../core/chat/chat_controller.dart';
 import '../../core/audio/audio_recorder_service.dart';
 import '../../core/audio/audio_player_service.dart';
 import '../../models/chat_message.dart';
+
 import 'package:flutter/services.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -34,11 +35,22 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  void _showNotSent() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Sin conexión: el mensaje no se envió')),
+    );
+  }
+
   void _sendText() {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
-    context.read<ChatController>().sendText(widget.peer, text);
-    _textController.clear();
+    final sent = context.read<ChatController>().sendText(widget.peer, text);
+    if (sent) {
+      _textController.clear();
+    } else {
+      _showNotSent(); // conservamos el texto para que pueda reintentar
+    }
   }
 
   Future<void> _startRecording() async {
@@ -53,7 +65,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     final dir = await getTemporaryDirectory();
-    _recordingPath = '${dir.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    _recordingPath =
+        '${dir.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
     await _recorder.startRecording(_recordingPath!);
     setState(() => _isRecording = true);
@@ -67,7 +80,11 @@ class _ChatScreenState extends State<ChatScreen> {
     if (audioBytes == null || audioBytes.isEmpty) return;
 
     if (mounted) {
-      context.read<ChatController>().sendAudio(widget.peer, audioBytes);
+      final sent = context.read<ChatController>().sendAudio(
+        widget.peer,
+        audioBytes,
+      );
+      if (!sent) _showNotSent();
     }
   }
 
@@ -104,14 +121,21 @@ class _ChatScreenState extends State<ChatScreen> {
               itemBuilder: (context, index) {
                 final msg = messages[messages.length - 1 - index];
                 return Align(
-                  alignment: msg.isMine ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: msg.isMine
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: msg.isMine
                           ? Theme.of(context).colorScheme.primaryContainer
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          : Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: msg.type == 'audio'
@@ -134,7 +158,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   const Icon(Icons.mic, color: Colors.red),
                   const SizedBox(width: 8),
-                  const Text('Grabando... suelta para enviar, desliza para cancelar'),
+                  const Text(
+                    'Grabando... suelta para enviar, desliza para cancelar',
+                  ),
                 ],
               ),
             ),
@@ -167,7 +193,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     height: _isRecording ? 64 : 48,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _isRecording ? Colors.red : Theme.of(context).colorScheme.primary,
+                      color: _isRecording
+                          ? Colors.red
+                          : Theme.of(context).colorScheme.primary,
                     ),
                     child: Icon(
                       _isRecording ? Icons.mic : Icons.mic_none,
